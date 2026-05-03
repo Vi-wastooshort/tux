@@ -1,0 +1,23 @@
+command /sudo-login <text>:
+    trigger:
+        if arg-1 is {root_password}:
+            set {sudo_session::%uuid of player%} to now
+            send "&a✓ Root access granted for 10 minutes" to player
+        else:
+            send "&c✗ Incorrect password" to player
+
+command /sudo <text>:
+    trigger:
+        if {sudo_session::%uuid of player%} is not set:
+            send "&cNot authenticated. Use: &f/sudo-login <password>" to player
+            stop
+        
+        # Check if session expired
+        if difference between {sudo_session::%uuid of player%} and now is greater than 10 minutes:
+            send "&cSession expired. Re-authenticate." to player
+            delete {sudo_session::%uuid of player%}
+            stop
+        
+        # Execute with elevated privilege
+        execute console command arg-1
+        send "&a✓ Command executed: %arg-1%" to player
