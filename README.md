@@ -5,6 +5,8 @@ Stable releases of tux are located in `releases`, and we recommend people use ou
 
 tux works best with Paper, and is (according to my knowledge) compatible with most major Paper and Skript releases.
 
+<img width="654" height="166" alt="image" src="https://github.com/user-attachments/assets/74957ae1-30d1-44ea-ae06-32932e1f2be5" />
+
 ## Installation
 1. Install Skript (https://modrinth.com/plugin/skript) onto your server.
 2. Download the latest release of tux from `releases`.
