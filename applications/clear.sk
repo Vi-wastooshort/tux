@@ -4,4 +4,3 @@ command /clear:
     trigger:
         loop 100 times:
             send "" to player
-        send "&7Chat cleared." to player
