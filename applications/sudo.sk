@@ -2,11 +2,12 @@ command /sudo-login <text>:
     trigger:
         if arg-1 is {root_password}:
             set {sudo_session::%uuid of player%} to now
-            send "&a✓ Root access granted for 10 minutes" to player
+            send "&a[✓] Root access granted for 10 minutes" to player
         else:
-            send "&c✗ Incorrect password" to player
+            send "&c[✗] Incorrect password" to player
 
 command /sudo <text>:
+    description: Privilege elevation for non-administrators 
     trigger:
         if {sudo_session::%uuid of player%} is not set:
             send "&cNot authenticated. Use: &f/sudo-login <password>" to player
@@ -17,7 +18,17 @@ command /sudo <text>:
             send "&cSession expired. Re-authenticate." to player
             delete {sudo_session::%uuid of player%}
             stop
-        
+
+        if {sudo_lecture_seen::%uuid of player%} is not true:
+            send "&f&m─────────────────────────────────" to player
+            send "&fWe trust you have received the usual lecture from the local System Administrator. It usually boils down to these three things:"
+            send "&f    #1) Respect the privacy of others." to player
+            send "&f    #2) Think before you type." to player
+            send "&f    #3) With great power comes great responsibility." to player
+            send "&f&m─────────────────────────────────" to player
+            set {sudo_lecture_seen::%uuid of player%} to true
+
+
         # Execute with elevated privilege
         execute console command arg-1
-        send "&a✓ Command executed: %arg-1%" to player
+        send "&a[✓] Command executed: %arg-1%" to player
