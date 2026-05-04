@@ -1,5 +1,5 @@
 # tux 🐧
-tux is a lightweight UNIX-like kernel + shell simulation in Minecraft using Skript. It comes with a fully implemented in-memory filesystem along with a set of familiar command-line tools. It requires no dependencies other than Skript.
+tux is a lightweight UNIX-like kernel + shell implementation in Minecraft using Skript. It comes with a fully implemented in-memory filesystem along with a set of familiar command-line tools. It requires no dependencies other than Skript.
 
 ## Installation
 1. Install Skript (https://modrinth.com/plugin/skript) onto your server.
