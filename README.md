@@ -42,24 +42,30 @@ Some commands require `sudo` permissions by default. In order to gain sudo permi
 
 ## Q&A
 
-Q: The filesystem isn’t saving after a server restart. Why?
-A: `tux` uses an in-memory filesystem by default. We do have plans for persistent file storage, but in a later version.
+**Q**: The filesystem isn’t saving after a server restart. Why?
 
-Q: Can I create new users or groups?
-A: Not yet. Permissions are a work in progress. Currently, only the `root` user (via `/sudo-login`) has elevated access. We are working on implementing a way to give elevated file access through users and groups without sharing a root password.
+`tux` uses an in-memory filesystem by default. We do have plans for persistent file storage, but in a later version.
 
-Q: Commands aren’t working after installation.
-A: Ensure:
+**Q:** Can I create new users or groups?
+
+Not yet. Permissions are a work in progress. Currently, only the `root` user (via `/sudo-login`) has elevated access. We are working on implementing a way to give elevated file access through users and groups without sharing a root password.
+
+**Q:** Commands aren’t working after installation.
+
+Ensure:
 - Skript is installed and up to date.
 - You’ve reloaded Skript (/skript reload all).
 - You’re using a Paper-compatible server (Spigot/Bukkit may work but aren’t officially supported).
-Otherwise, submit a bug report in issues. It most likely is an issue with Skript.
+Otherwise, submit a bug report in issues.
 
-Q: I get "Invalid path" errors.
-A: Paths are case-sensitive and must use `/` (not `\`). Example: `/cd /filesystem/root` (correct) vs. `/cd \filesystem\root` (incorrect).
+**Q:** I get "Invalid path" errors.
 
-Q: Why the name "tux"?
+Paths are case-sensitive and must use `/` (not `\`). Example: `/cd /filesystem/root` (correct) vs. `/cd \filesystem\root` (incorrect).
+
+**Q:** Why the name "tux"?
+
 A: Tux is the official mascot of Linux, and this project is heavily based on and inspired by Linux. Plus, it’s cute.
 
-Q: tux doesn't work on older versions of Paper/Skript. Can you port it to older versions?
-A: Compatibility with older versions may be limited due to changes in Skript/Paper APIs. We might be able to port a version of tux to earlier Paper/Skript versions, but don't hold your breath for it.
+**Q:** tux doesn't work on older versions of Paper/Skript. Can you port it to older versions?
+
+Compatibility with older versions may be limited due to changes in Skript/Paper APIs. We might be able to port a version of tux to earlier Paper/Skript versions, but don't hold your breath for it.
