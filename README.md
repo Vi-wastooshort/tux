@@ -68,11 +68,14 @@ Paths are case-sensitive and must use `/` (not `\`). Example: `/cd /filesystem/r
 
 **Q:** Why the name "tux"?
 
-A: Tux is the official mascot of Linux, and this project is heavily based on and inspired by Linux. Plus, it’s cute.
+A: "Tux" is the official mascot of Linux, as this project is heavily based on and inspired by Linux. It also worked the best with ASCII in comparison to other names in the first ever developed application: `/fastfetch`. It is lowercase intentionally for uniformity across applications in tux. And most importantly, it’s cute.
 
 **Q:** tux doesn't work on older versions of Paper/Skript. Can you port it to older versions?
 
 Compatibility with older versions may be limited due to changes in Skript/Paper APIs. We might be able to port a version of tux to earlier Paper/Skript versions, but don't hold your breath for it.
 
 ## Copyright
-This project is licensed under the GNU General Public License v3.0 (GPL-3.0-or-later). This project is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation. The name "tux" and related branding are not affiliated with or endorsed by the Linux Foundation. By contributing to this project, you agree that your contributions will be licensed under the same terms.
+
+This project is licensed under the GNU General Public License v3.0 or later (GPL-3.0-or-later). See the LICENSE file for details.
+By contributing to this project, you agree that your contributions will be licensed under the same terms.
+The name "tux" and related branding are not affiliated with or endorsed by the Linux Foundation.
