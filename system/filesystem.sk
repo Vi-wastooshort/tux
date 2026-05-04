@@ -1,0 +1,513 @@
+options:
+    fs_base: /filesystem
+    fs_root: /filesystem/root
+
+#
+# Virtual filesystem bootstrap
+#
+
+on load:
+    # Protected base tree
+    set {vfs::type::{@fs_base}} to "dir"
+    set {vfs::perm::{@fs_base}} to "555"
+    set {vfs::owner::{@fs_base}} to "root"
+
+    set {vfs::type::{@fs_root}} to "dir"
+    set {vfs::perm::{@fs_root}} to "700"
+    set {vfs::owner::{@fs_root}} to "root"
+
+on join:
+    if {vfs::cwd::%uuid of player%} is not set:
+        set {vfs::cwd::%uuid of player%} to "{@fs_root}"
+
+
+#
+# Helpers
+#
+
+function has_root_session(p: player) :: boolean:
+    if {sudo_session::%uuid of {_p}%} is not set:
+        return false
+    if difference between {sudo_session::%uuid of {_p}%} and now is greater than 10 minutes:
+        delete {sudo_session::%uuid of {_p}%}
+        return false
+    return true
+
+function fs_name(path: text) :: text:
+    set {_parts::*} to {_path} split at "/"
+    if size of {_parts::*} is 0:
+        return ""
+    return last element of {_parts::*}
+
+function fs_parent(path: text) :: text:
+    if {_path} is "{@fs_root}":
+        return "{@fs_root}"
+
+    set {_parts::*} to {_path} split at "/"
+    if size of {_parts::*} <= 1:
+        return "{@fs_root}"
+
+    delete {_parts::%size of {_parts::*}%}
+    set {_out} to join {_parts::*} with "/"
+
+    if {_out} is "":
+        set {_out} to "/"
+
+    return {_out}
+
+function fs_resolve(raw: text, p: player) :: text:
+    set {_cwd} to {vfs::cwd::%uuid of {_p}%}
+    if {_cwd} is not set:
+        set {_cwd} to "{@fs_root}"
+
+    if {_raw} is "":
+        return {_cwd}
+
+    if {_raw} starts with "/":
+        set {_full} to {_raw}
+    else:
+        set {_full} to "%{_cwd}%/%{_raw}%"
+
+    set {_parts::*} to {_full} split at "/"
+    clear {_stack::*}
+
+    loop {_parts::*}:
+        if loop-value is "":
+            continue
+        if loop-value is ".":
+            continue
+        if loop-value is "..":
+            if size of {_stack::*} > 0:
+                delete {_stack::%size of {_stack::*}%}
+            continue
+        add loop-value to {_stack::*}
+
+    set {_out} to "/" + join {_stack::*} with "/"
+
+    if {_out} does not start with "{@fs_root}":
+        return ""
+
+    return {_out}
+
+function fs_exists(path: text) :: boolean:
+    if {vfs::type::%{_path}%} is set:
+        return true
+    return false
+
+function fs_is_dir(path: text) :: boolean:
+    if {vfs::type::%{_path}%} is "dir":
+        return true
+    return false
+
+function fs_is_file(path: text) :: boolean:
+    if {vfs::type::%{_path}%} is "file":
+        return true
+    return false
+
+#
+# Basic shell commands
+#
+
+command /pwd:
+    trigger:
+        send "&7%{vfs::cwd::%uuid of player%}%" to player
+
+command /cd [<text>]:
+    trigger:
+        if arg-1 is not set:
+            send "&7Current directory: &f%{vfs::cwd::%uuid of player%}%" to player
+            stop
+
+        if arg-1 is "..":
+            set {_target} to fs_parent({vfs::cwd::%uuid of player%})
+        else:
+            set {_target} to fs_resolve(arg-1, player)
+
+        if {_target} is "":
+            send "&cInvalid path." to player
+            stop
+
+        if {vfs::type::%{_target}%} is not "dir":
+            send "&cNot a directory." to player
+            stop
+
+        set {vfs::cwd::%uuid of player%} to {_target}
+        send "&aChanged directory to &f%{_target}%" to player
+
+command /ls [<text>]:
+    trigger:
+        if arg-1 is set:
+            set {_dir} to fs_resolve(arg-1, player)
+        else:
+            set {_dir} to {vfs::cwd::%uuid of player%}
+
+        if {_dir} is "":
+            send "&cInvalid path." to player
+            stop
+
+        if {vfs::type::%{_dir}%} is not "dir":
+            send "&cNot a directory." to player
+            stop
+
+        send "&8--- &f%{_dir}% &8---" to player
+
+        if {vfs::children::%{_dir}%::*} is not set:
+            send "&7(empty)" to player
+            stop
+
+        loop {vfs::children::%{_dir}%::*}:
+            set {_childPath} to "%{_dir}%/%loop-value%"
+            if {vfs::type::%{_childPath}%} is "dir":
+                send "&9%loop-value%&7/" to player
+            else if {vfs::type::%{_childPath}%} is "file":
+                send "&f%loop-value%" to player
+            else:
+                send "&8%loop-value%" to player
+
+command /cat <text>:
+    trigger:
+        set {_file} to fs_resolve(arg-1, player)
+        if {_file} is "":
+            send "&cInvalid path." to player
+            stop
+
+        if {vfs::type::%{_file}%} is not "file":
+            send "&cNot a file." to player
+            stop
+
+        if {vfs::content::%{_file}%} is not set:
+            send "&7(empty)" to player
+            stop
+
+        send "&f%{vfs::content::%{_file}%}%" to player
+
+#
+# Privileged filesystem commands
+# Require the sudo session from your provided code.
+#
+
+command /mkdir <text>:
+    trigger:
+        if has_root_session(player) is false:
+            send "&cRoot access required. Use &f/sudo-login <password>&c." to player
+            stop
+
+        set {_dir} to fs_resolve(arg-1, player)
+        if {_dir} is "":
+            send "&cInvalid path." to player
+            stop
+
+        set {_dir} to fs_resolve(arg-1, player)
+        if {_dir} is "":
+            send "&cInvalid path." to player
+            stop
+
+        if {_dir} is "{@fs_base}":
+            send "&cThat path is protected." to player
+            stop
+
+        if {_dir} is "{@fs_root}":
+            send "&cThat path is protected." to player
+            stop
+
+        if {vfs::type::%{_dir}%} is set:
+            send "&cThat path already exists." to player
+            stop
+
+        set {_parent} to fs_parent({_dir})
+        if {vfs::type::%{_parent}%} is not "dir":
+            send "&cParent directory does not exist." to player
+            stop
+
+        set {vfs::type::%{_dir}%} to "dir"
+        set {vfs::content::%{_dir}%} to ""
+        set {vfs::owner::%{_dir}%} to "root"
+        set {vfs::perm::%{_dir}%} to "700"
+        add fs_name({_dir}) to {vfs::children::%{_parent}%::*}
+
+        send "&aDirectory created: &f%{_dir}%" to player
+
+command /touch <text>:
+    trigger:
+        if has_root_session(player) is false:
+            send "&cRoot access required. Use &f/sudo-login <password>&c." to player
+            stop
+
+        set {_file} to fs_resolve(arg-1, player)
+        if {_file} is "":
+            send "&cInvalid path." to player
+            stop
+
+        if {_file} is "{@fs_base}":
+            send "&cThat path is protected." to player
+            stop
+
+        if {_file} is "{@fs_root}":
+            send "&cThat path is protected." to player
+            stop
+
+        if {vfs::type::%{_file}%} is "dir":
+            send "&cA directory already exists there." to player
+            stop
+
+        if {vfs::type::%{_file}%} is not set:
+            set {_parent} to fs_parent({_file})
+            if {vfs::type::%{_parent}%} is not "dir":
+                send "&cParent directory does not exist." to player
+                stop
+            add fs_name({_file}) to {vfs::children::%{_parent}%::*}
+
+        set {vfs::type::%{_file}%} to "file"
+        set {vfs::content::%{_file}%} to ""
+        set {vfs::owner::%{_file}%} to "root"
+        set {vfs::perm::%{_file}%} to "600"
+
+        send "&aFile ready: &f%{_file}%" to player
+
+command /write <text> <text>:
+    trigger:
+        if has_root_session(player) is false:
+            send "&cRoot access required. Use &f/sudo-login <password>&c." to player
+            stop
+
+        set {_file} to fs_resolve(arg-1, player)
+        if {_file} is "":
+            send "&cInvalid path." to player
+            stop
+
+        if {_file} is "{@fs_base}":
+            send "&cThat path is protected." to player
+            stop
+
+        if {_file} is "{@fs_root}":
+            send "&cThat path is protected." to player
+            stop
+
+        if {vfs::type::%{_file}%} is "dir":
+            send "&cCannot write to a directory." to player
+            stop
+
+        if {vfs::type::%{_file}%} is not set:
+            set {_parent} to fs_parent({_file})
+            if {vfs::type::%{_parent}%} is not "dir":
+                send "&cParent directory does not exist." to player
+                stop
+            set {vfs::type::%{_file}%} to "file"
+            set {vfs::owner::%{_file}%} to "root"
+            set {vfs::perm::%{_file}%} to "600"
+            add fs_name({_file}) to {vfs::children::%{_parent}%::*}
+
+        set {vfs::content::%{_file}%} to arg-2
+        send "&aWrote to &f%{_file}%" to player
+
+command /append <text> <text>:
+    trigger:
+        if has_root_session(player) is false:
+            send "&cRoot access required. Use &f/sudo-login <password>&c." to player
+            stop
+
+        set {_file} to fs_resolve(arg-1, player)
+        if {_file} is "":
+            send "&cInvalid path." to player
+            stop
+
+        if {vfs::type::%{_file}%} is "dir":
+            send "&cCannot append to a directory." to player
+            stop
+
+        if {vfs::type::%{_file}%} is not set:
+            set {_parent} to fs_parent({_file})
+            if {vfs::type::%{_parent}%} is not "dir":
+                send "&cParent directory does not exist." to player
+                stop
+            set {vfs::type::%{_file}%} to "file"
+            set {vfs::owner::%{_file}%} to "root"
+            set {vfs::perm::%{_file}%} to "600"
+            add fs_name({_file}) to {vfs::children::%{_parent}%::*}
+            set {vfs::content::%{_file}%} to ""
+
+        if {vfs::content::%{_file}%} is not set:
+            set {vfs::content::%{_file}%} to ""
+
+        set {vfs::content::%{_file}%} to "%{vfs::content::%{_file}%}%%arg-2%"
+        send "&aAppended to &f%{_file}%" to player
+
+command /rm <text>:
+    trigger:
+        if has_root_session(player) is false:
+            send "&cRoot access required. Use &f/sudo-login <password>&c." to player
+            stop
+
+        set {_path} to fs_resolve(arg-1, player)
+        if {_path} is "":
+            send "&cInvalid path." to player
+            stop
+
+        if {_file} is "{@fs_base}":
+            send "&cThat path is protected." to player
+            stop
+
+        if {_path} is "{@fs_root}":
+            send "&4[  0.000000] Kernel panic - not syncing: Attempted to kill init!" to player
+            wait 2 ticks
+            send "&4[  0.000123] CPU: 0 PID: 1 Comm: init Not tainted 5.15.0-virtual #1" to player
+            wait 1 tick
+            send "&4[  0.000245] Hardware name: Tux Virtual Environment" to player
+            wait 1 tick
+            send "&4[  0.000367] Call Trace:" to player
+            wait 1 tick
+            send "&4[  0.000489]  dump_stack+0x6d/0x8b" to player
+            wait 1 tick
+            send "&4[  0.000612]  panic+0x101/0x2e3" to player
+            wait 1 tick
+            send "&4[  0.000734]  do_exit+0x8a1/0xa20" to player
+            wait 1 tick
+            send "&4[  0.000856]  do_group_exit+0x33/0xa0" to player
+            wait 1 tick
+            send "&4[  0.000978]  __x64_sys_exit_group+0x14/0x20" to player
+            wait 1 tick
+            send "&4[  0.001101]  do_syscall_64+0x3b/0x90" to player
+            wait 1 tick
+            send "&4[  0.001223]  entry_SYSCALL_64_after_hwframe+0x44/0xae" to player
+            wait 2 ticks
+            send "&4[  0.001345] RIP: 0033:0x0" to player
+            wait 1 tick
+            send "&4[  0.001467] Code: Bad RIP value." to player
+            wait 2 ticks
+            send "&4[  0.001589] Kernel Offset: disabled" to player
+            wait 1 tick
+            send "&4[  0.001711] ---[ end Kernel panic - not syncing: Attempted to kill init! ]---" to player
+            wait 10 ticks
+            send "&8System halted." to player
+            play sound "block.anvil.destroy" with volume 1 and pitch 0.5 to player
+            apply blindness 1 to player for 5 seconds
+            apply slowness 10 to player for 5 seconds
+            stop
+
+        if {vfs::type::%{_path}%} is "file":
+            delete {vfs::type::%{_path}%}
+            delete {vfs::content::%{_path}%}
+            delete {vfs::owner::%{_path}%}
+            delete {vfs::perm::%{_path}%}
+            remove fs_name({_path}) from {vfs::children::%fs_parent({_path})%::*}
+            send "&aFile deleted: &f%{_path}%" to player
+            stop
+
+        if {vfs::type::%{_path}%} is "dir":
+            if {vfs::children::%{_path}%::*} is set:
+                if size of {vfs::children::%{_path}%::*} > 0:
+                    send "&cDirectory not empty." to player
+                    stop
+
+            delete {vfs::type::%{_path}%}
+            delete {vfs::content::%{_path}%}
+            delete {vfs::owner::%{_path}%}
+            delete {vfs::perm::%{_path}%}
+            delete {vfs::children::%{_path}%::*}
+            remove fs_name({_path}) from {vfs::children::%fs_parent({_path})%::*}
+            send "&aDirectory deleted: &f%{_path}%" to player
+            stop
+
+        send "&cPath does not exist." to player
+
+command /chmod <text> <text>:
+    trigger:
+        if has_root_session(player) is false:
+            send "&cRoot access required. Use &f/sudo-login <password>&c." to player
+            stop
+
+        set {_perm} to arg-1
+        set {_path} to fs_resolve(arg-2, player)
+
+        if {_path} is "":
+            send "&cInvalid path." to player
+            stop
+
+        if {vfs::type::%{_path}%} is not set:
+            send "&cPath does not exist." to player
+            stop
+
+        set {vfs::perm::%{_path}%} to {_perm}
+        send "&aPermissions for &f%{_path}% &aset to &f%{_perm}%" to player
+
+command /mv <text> <text>:
+    trigger:
+        if has_root_session(player) is false:
+            send "&cRoot access required. Use &f/sudo-login <password>&c." to player
+            stop
+
+        set {_src} to fs_resolve(arg-1, player)
+        set {_dst} to fs_resolve(arg-2, player)
+
+        if {_src} is "":
+            send "&cInvalid path." to player
+            stop
+
+        if {_dst} is "":
+            send "&cInvalid path." to player
+            stop
+
+        if {_src} is "{@fs_base}":
+            send "&cThat path is protected." to player
+            stop
+
+        if {_src} is "{@fs_root}":
+            send "&cThat path is protected." to player
+            stop
+
+        if {_dst} is "{@fs_base}":
+            send "&cThat path is protected." to player
+            stop
+
+        if {_dst} is "{@fs_root}":
+            send "&cThat path is protected." to player
+            stop
+
+        if {vfs::type::%{_src}%} is not set:
+            send "&cSource does not exist." to player
+            stop
+
+        if {vfs::type::%{_dst}%} is set:
+            send "&cDestination already exists." to player
+            stop
+
+        set {_dstParent} to fs_parent({_dst})
+        if {vfs::type::%{_dstParent}%} is not "dir":
+            send "&cDestination parent does not exist." to player
+            stop
+
+        # Move file/dir metadata
+        set {_kind} to {vfs::type::%{_src}%}
+        set {_content} to {vfs::content::%{_src}%}
+        set {_owner} to {vfs::owner::%{_src}%}
+        set {_perm} to {vfs::perm::%{_src}%}
+        set {_srcParent} to fs_parent({_src})
+        set {_srcName} to fs_name({_src})
+        set {_dstName} to fs_name({_dst})
+
+        set {vfs::type::%{_dst}%} to {_kind}
+        set {vfs::content::%{_dst}%} to {_content}
+        set {vfs::owner::%{_dst}%} to {_owner}
+        set {vfs::perm::%{_dst}%} to {_perm}
+
+        if {_kind} is "dir":
+            if {vfs::children::%{_src}%::*} is set:
+                loop {vfs::children::%{_src}%::*}:
+                    set {_childOld} to "%{_src}%/%loop-value%"
+                    set {_childNew} to "%{_dst}%/%loop-value%"
+                    set {vfs::type::%{_childNew}%} to {vfs::type::%{_childOld}%}
+                    set {vfs::content::%{_childNew}%} to {vfs::content::%{_childOld}%}
+                    set {vfs::owner::%{_childNew}%} to {vfs::owner::%{_childOld}%}
+                    set {vfs::perm::%{_childNew}%} to {vfs::perm::%{_childOld}%}
+            set {vfs::children::%{_dst}%::*} to {vfs::children::%{_src}%::*}
+            delete {vfs::children::%{_src}%::*}
+
+        add {_dstName} to {vfs::children::%{_dstParent}%::*}
+        remove {_srcName} from {vfs::children::%{_srcParent}%::*}
+
+        delete {vfs::type::%{_src}%}
+        delete {vfs::content::%{_src}%}
+        delete {vfs::owner::%{_src}%}
+        delete {vfs::perm::%{_src}%}
+
+        send "&aMoved &f%{_src}% &ato &f%{_dst}%" to player
