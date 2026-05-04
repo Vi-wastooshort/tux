@@ -5,6 +5,8 @@ Stable releases of tux are located in `releases`, and we recommend people use ou
 
 tux works best with Paper, and is (according to my knowledge) compatible with most major Paper and Skript releases.
 
+tux is mainly for educational and entertainment purposes. Discretion is advised.
+
 <img width="654" height="166" alt="image" src="https://github.com/user-attachments/assets/74957ae1-30d1-44ea-ae06-32932e1f2be5" />
 
 ## Installation
@@ -71,3 +73,6 @@ A: Tux is the official mascot of Linux, and this project is heavily based on and
 **Q:** tux doesn't work on older versions of Paper/Skript. Can you port it to older versions?
 
 Compatibility with older versions may be limited due to changes in Skript/Paper APIs. We might be able to port a version of tux to earlier Paper/Skript versions, but don't hold your breath for it.
+
+## Copyright
+This project is licensed under the GNU General Public License v3.0 (GPL-3.0-or-later). This project is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation. The name "tux" and related branding are not affiliated with or endorsed by the Linux Foundation. By contributing to this project, you agree that your contributions will be licensed under the same terms.
