@@ -1,7 +1,4 @@
-command /clear:
-    description: Clears your chat
-    usage: /clear
+command /whoami:
+    description: Displays the username of the player
     trigger:
-        loop 100 times:
-            send "" to player
-        send "&7Chat cleared." to player
+        message "%player%" to player
