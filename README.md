@@ -44,7 +44,7 @@ Some commands require `sudo` permissions by default. In order to gain sudo permi
 
 **Q**: The filesystem isn’t saving after a server restart. Why?
 
-`tux` uses an in-memory filesystem by default. We do have plans for persistent file storage, but in a later version.
+`tux` uses an in-memory filesystem by default. We do have plans for persistent file storage, but only in a later version.
 
 **Q:** Can I create new users or groups?
 
