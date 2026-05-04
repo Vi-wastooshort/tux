@@ -1,36 +1,44 @@
 on load:
     set {server_start_time} to now
-    # Kernel version
-    set {kernel-version} to "tux1.0-beta"
 
+# Helper function, works if your Skript supports functions
+function formatUptime(duration: timespan) :: text:
+    set {_seconds} to seconds of {_duration}
+    set {_minutes} to floor({_seconds} / 60)
+    set {_hours} to floor({_minutes} / 60)
+
+    if {_hours} >= 1:
+        return "%{_hours}%h"
+    else if {_minutes} >= 1:
+        return "%{_minutes}%m"
+    else:
+        return "%{_seconds}%s"
+        
 command /fastfetch:
+    description: Displays server and Tux information
     trigger:
-        # Setting values
         set {_players} to number of all players
         set {_max_players} to max players
-        set {_uptime} to difference between {server_start_time} and now # Determining uptime
-        set {_uptimeText} to "%{_uptime}%"
+        set {_uptime} to difference between {server_start_time} and now
+        set {_uptimeText} to formatUptime({_uptime})
 
-        # Printing.
         send "&7&m─────────────────────────────────" to player
-        send "  ,d                                        | &7%player%&f@tux" to player # Username + hostname
-        send "  88                                       | &7Players: &f%{_players}%&7/&f%{_max_players}%" to player # Amount of players + max playercount
-        send "MM88MM  88       88    8b,   ,d8      | &7TPS: &f%tps%" to player # TPS
+        send "  ,d                                        | &7%player%&f@tux" to player
+        send "  88                                       | &7Players: &f%{_players}%&7/&f%{_max_players}%" to player
+        send "MM88MM  88       88    8b,   ,d8      | &7TPS: &f%tps%" to player
 
-        # Check if uptime text is too long (adjust number as needed)
         if length of {_uptimeText} > 17:
-            send "  88      88       88     Y8  8P       | &7Uptime:" to player # Uptime
+            send "  88      88       88     Y8  8P       | &7Uptime:" to player
             send "  88      88       88       '888        | &f%{_uptimeText}%" to player
         else:
             send "  88      88       88     Y8  8P       | &7Uptime: &f%{_uptimeText}%" to player
-            send "  88      88       88      '888         | &7Server: &fPaperMC" to player # Adjust as needed
+            send "  88      88       88      '888         | &7Server: &fPaperMC" to player
             send "  88,      '8a,   ,a88     ,d8' '8b       | &7Kernel: &f%{kernel-version}%" to player
             send "  ''Y888    `'YbbdP''    8P'     `Y8     |" to player
             send "&7&m─────────────────────────────────" to player
             stop
 
-        # If it wrapped, continue layout manually
-        send "  88      88       88       '888        | &7Server: &fPaperMC" to player # Adjust as needed
-        send "  88,      '8a,   ,a88     ,d8' '8b       | &7Kernel: &f%{_kernel-version}%" to player
+        send "  88      88       88       '888        | &7Server: &fPaperMC" to player
+        send "  88,      '8a,   ,a88     ,d8' '8b       | &7Kernel: &f%{kernel-version}%" to player
         send "  ''Y888    `'YbbdP''    8P'     `Y8     |" to player
         send "&7&m─────────────────────────────────" to player
