@@ -13,7 +13,7 @@ tux works best with Paper, and is (according to my knowledge) compatible with mo
 5. Done. To see if it installed properly, input the command `/fastfetch`.
 
 ## Documentation
-**IMPORTANT** The default `/sudo` command is `root`. If someone authenticates using the root password, they can be able to run *any* server command using the *server* console. It is **very** important that server administrators change the `/sudo` password in the file `rootpassword.sk` in the `system` folder before reloading Skript using `/skript reload all`.
+**IMPORTANT** The default `/sudo-login` password is `root`. If someone authenticates using the root password, they can be able to run *any* server command using the *server* console. It is **very** important that server administrators change the `/sudo` password in the file `rootpassword.sk` in the `system` folder before reloading Skript using `/skript reload all`.
 
 **Note**: tux is still in *beta*. Bugs are expected. Please report bugs in issues: https://github.com/Vi-wastooshort/tux/issues.
 
