@@ -1,0 +1,2 @@
+on load:
+    set {kernel-version} to "tux1.0-beta" # Kernel version
