@@ -105,6 +105,123 @@ function fs_is_file(path: text) :: boolean:
     return false
 
 #
+# Permission helpers
+#
+
+function fs_user(p: player) :: text:
+    if has_root_session({_p}) is true:
+        return "root"
+    return "%uuid of {_p}%"
+
+function fs_perm_digit_has(digit: text, flag: text) :: boolean:
+    # 0 ---
+    # 1 --x
+    # 2 -w-
+    # 3 -wx
+    # 4 r--
+    # 5 r-x
+    # 6 rw-
+    # 7 rwx
+
+    if {_flag} is "r":
+        if {_digit} is "4" or "5" or "6" or "7":
+            return true
+
+    if {_flag} is "w":
+        if {_digit} is "2" or "3" or "6" or "7":
+            return true
+
+    if {_flag} is "x":
+        if {_digit} is "1" or "3" or "5" or "7":
+            return true
+
+    return false
+
+function fs_has_perm(p: player, path: text, flag: text) :: boolean:
+    #
+    # Root bypass
+    #
+
+    if has_root_session({_p}) is true:
+        return true
+
+    #
+    # Path must exist
+    #
+
+    if {vfs::type::%{_path}%} is not set:
+        return false
+
+    #
+    # Default perms
+    #
+
+    set {_perm} to {vfs::perm::%{_path}%}
+
+    if {_perm} is not set:
+        set {_perm} to "700"
+
+    #
+    # Owner check
+    #
+
+    set {_owner} to {vfs::owner::%{_path}%}
+    set {_user} to fs_user({_p})
+
+    #
+    # UNIX style:
+    # first digit = owner
+    # third digit = everyone else
+    #
+
+    set {_ownerDigit} to subtext of {_perm} from 1 to 1
+    set {_otherDigit} to subtext of {_perm} from 3 to 3
+
+    if {_owner} is {_user}:
+        return fs_perm_digit_has({_ownerDigit}, {_flag})
+
+    return fs_perm_digit_has({_otherDigit}, {_flag})
+
+function fs_can_traverse(p: player, path: text) :: boolean:
+    #
+    # Every parent dir must have execute perms
+    #
+
+    if has_root_session({_p}) is true:
+        return true
+
+    set {_current} to {_path}
+
+    loop 100 times:
+        if {_current} is "{@fs_root}":
+            stop loop
+
+        set {_current} to fs_parent({_current})
+
+        if fs_has_perm({_p}, {_current}, "x") is false:
+            return false
+
+    return true
+
+function fs_can_read(p: player, path: text) :: boolean:
+    if fs_can_traverse({_p}, {_path}) is false:
+        return false
+
+    return fs_has_perm({_p}, {_path}, "r")
+
+function fs_can_write(p: player, path: text) :: boolean:
+    if fs_can_traverse({_p}, fs_parent({_path})) is false:
+        return false
+
+    return fs_has_perm({_p}, fs_parent({_path}), "w")
+
+function fs_can_execute(p: player, path: text) :: boolean:
+    if fs_can_traverse({_p}, {_path}) is false:
+        return false
+
+    return fs_has_perm({_p}, {_path}, "x")
+
+#
 # Basic shell commands
 #
 
@@ -149,6 +266,10 @@ command /ls [<text>]:
             send "&cNot a directory." to player
             stop
 
+        if fs_can_read(player, {_dir}) is false:
+            send "&cPermission denied." to player
+            stop
+
         send "&8--- &f%{_dir}% &8---" to player
 
         if {vfs::children::%{_dir}%::*} is not set:
@@ -179,11 +300,14 @@ command /cat <text>:
             send "&7(empty)" to player
             stop
 
+        if fs_can_read(player, {_file}) is false:
+            send "&cPermission denied." to player
+            stop
+
         send "&f%{vfs::content::%{_file}%}%" to player
 
 #
 # Privileged filesystem commands
-# Require the sudo session from your provided code.
 #
 
 command /mkdir <text>:
@@ -206,8 +330,8 @@ command /mkdir <text>:
             send "&cThat path is protected." to player
             stop
 
-        if {_dir} is "{@fs_root}":
-            send "&cThat path is protected." to player
+        if fs_can_write(player, {_dir}) is false:
+            send "&cPermission denied." to player
             stop
 
         if {vfs::type::%{_dir}%} is set:
@@ -221,7 +345,7 @@ command /mkdir <text>:
 
         set {vfs::type::%{_dir}%} to "dir"
         set {vfs::content::%{_dir}%} to ""
-        set {vfs::owner::%{_dir}%} to "root"
+        set {vfs::owner::%{_dir}%} to fs_user(player)
         set {vfs::perm::%{_dir}%} to "700"
         add fs_name({_dir}) to {vfs::children::%{_parent}%::*}
 
@@ -246,6 +370,10 @@ command /touch <text>:
             send "&cThat path is protected." to player
             stop
 
+        if fs_can_write(player, {_file}) is false:
+            send "&cPermission denied." to player
+            stop
+
         if {vfs::type::%{_file}%} is "dir":
             send "&cA directory already exists there." to player
             stop
@@ -259,7 +387,7 @@ command /touch <text>:
 
         set {vfs::type::%{_file}%} to "file"
         set {vfs::content::%{_file}%} to ""
-        set {vfs::owner::%{_file}%} to "root"
+        set {vfs::owner::%{_file}%} to fs_user(player)
         set {vfs::perm::%{_file}%} to "600"
 
         send "&aFile ready: &f%{_file}%" to player
@@ -297,6 +425,10 @@ command /write <text> <text>:
             set {vfs::perm::%{_file}%} to "600"
             add fs_name({_file}) to {vfs::children::%{_parent}%::*}
 
+            if fs_has_perm(player, {_file}, "w") is false:
+                send "&cPermission denied." to player
+                stop
+
         set {vfs::content::%{_file}%} to arg-2
         send "&aWrote to &f%{_file}%" to player
 
@@ -329,13 +461,17 @@ command /append <text> <text>:
         if {vfs::content::%{_file}%} is not set:
             set {vfs::content::%{_file}%} to ""
 
+        if fs_has_perm(player, {_file}, "w") is false:
+            send "&cPermission denied." to player
+            stop
+
         set {vfs::content::%{_file}%} to "%{vfs::content::%{_file}%}%%arg-2%"
         send "&aAppended to &f%{_file}%" to player
 
 command /rm <text>:
     trigger:
-        if has_root_session(player) is false:
-            send "&cRoot access required. Use &f/sudo-login <password>&c." to player
+        if fs_can_write(player, {_path}) is false:
+            send "&cPermission denied." to player
             stop
 
         set {_path} to fs_resolve(arg-1, player)
@@ -432,8 +568,12 @@ command /chmod <text> <text>:
 
 command /mv <text> <text>:
     trigger:
-        if has_root_session(player) is false:
-            send "&cRoot access required. Use &f/sudo-login <password>&c." to player
+        if fs_can_write(player, {_src}) is false:
+            send "&cPermission denied." to player
+            stop
+
+        if fs_can_write(player, {_dst}) is false:
+            send "&cPermission denied." to player
             stop
 
         set {_src} to fs_resolve(arg-1, player)
@@ -511,3 +651,41 @@ command /mv <text> <text>:
         delete {vfs::perm::%{_src}%}
 
         send "&aMoved &f%{_src}% &ato &f%{_dst}%" to player
+
+command /chown <text> <text>:
+    trigger:
+        if has_root_session(player) is false:
+            send "&cRoot access required." to player
+            stop
+
+        set {_user} to arg-1
+        set {_path} to fs_resolve(arg-2, player)
+
+        if {_path} is "":
+            send "&cInvalid path." to player
+            stop
+
+        if {vfs::type::%{_path}%} is not set:
+            send "&cPath does not exist." to player
+            stop
+
+        set {vfs::owner::%{_path}%} to {_user}
+
+        send "&aOwner updated."
+
+command /stat <text>:
+    trigger:
+        set {_path} to fs_resolve(arg-1, player)
+
+        if {_path} is "":
+            send "&cInvalid path."
+            stop
+
+        if {vfs::type::%{_path}%} is not set:
+            send "&cPath does not exist."
+            stop
+
+        send "&8--- &f%{_path}% &8---"
+        send "&7Type: &f%{vfs::type::%{_path}%}%"
+        send "&7Owner: &f%{vfs::owner::%{_path}%}%"
+        send "&7Perms: &f%{vfs::perm::%{_path}%}%"
