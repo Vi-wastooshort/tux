@@ -566,6 +566,27 @@ command /chmod <text> <text>:
         set {vfs::perm::%{_path}%} to {_perm}
         send "&aPermissions for &f%{_path}% &aset to &f%{_perm}%" to player
 
+function fs_move_recursive(src: text, dst: text):
+    # Copy metadata to new path
+    set {vfs::type::%{_dst}%} to {vfs::type::%{_src}%}
+    set {vfs::content::%{_dst}%} to {vfs::content::%{_src}%}
+    set {vfs::owner::%{_dst}%} to {vfs::owner::%{_src}%}
+    set {vfs::perm::%{_dst}%} to {vfs::perm::%{_src}%}
+
+    # Recurse into children if this is a directory
+    if {vfs::type::%{_src}%} is "dir":
+        set {vfs::children::%{_dst}%::*} to {vfs::children::%{_src}%::*}
+        if {vfs::children::%{_src}%::*} is set:
+            loop {vfs::children::%{_src}%::*}:
+                fs_move_recursive("%{_src}%/%loop-value%", "%{_dst}%/%loop-value%")
+
+    # Delete old node
+    delete {vfs::type::%{_src}%}
+    delete {vfs::content::%{_src}%}
+    delete {vfs::owner::%{_src}%}
+    delete {vfs::perm::%{_src}%}
+    delete {vfs::children::%{_src}%::*}
+
 command /mv <text> <text>:
     trigger:
         if fs_can_write(player, {_src}) is false:
@@ -616,39 +637,15 @@ command /mv <text> <text>:
             send "&cDestination parent does not exist." to player
             stop
 
-        # Move file/dir metadata
-        set {_kind} to {vfs::type::%{_src}%}
-        set {_content} to {vfs::content::%{_src}%}
-        set {_owner} to {vfs::owner::%{_src}%}
-        set {_perm} to {vfs::perm::%{_src}%}
         set {_srcParent} to fs_parent({_src})
         set {_srcName} to fs_name({_src})
         set {_dstName} to fs_name({_dst})
 
-        set {vfs::type::%{_dst}%} to {_kind}
-        set {vfs::content::%{_dst}%} to {_content}
-        set {vfs::owner::%{_dst}%} to {_owner}
-        set {vfs::perm::%{_dst}%} to {_perm}
-
-        if {_kind} is "dir":
-            if {vfs::children::%{_src}%::*} is set:
-                loop {vfs::children::%{_src}%::*}:
-                    set {_childOld} to "%{_src}%/%loop-value%"
-                    set {_childNew} to "%{_dst}%/%loop-value%"
-                    set {vfs::type::%{_childNew}%} to {vfs::type::%{_childOld}%}
-                    set {vfs::content::%{_childNew}%} to {vfs::content::%{_childOld}%}
-                    set {vfs::owner::%{_childNew}%} to {vfs::owner::%{_childOld}%}
-                    set {vfs::perm::%{_childNew}%} to {vfs::perm::%{_childOld}%}
-            set {vfs::children::%{_dst}%::*} to {vfs::children::%{_src}%::*}
-            delete {vfs::children::%{_src}%::*}
+        # Recursively move src to dst (handles files and nested dirs)
+        fs_move_recursive({_src}, {_dst})
 
         add {_dstName} to {vfs::children::%{_dstParent}%::*}
         remove {_srcName} from {vfs::children::%{_srcParent}%::*}
-
-        delete {vfs::type::%{_src}%}
-        delete {vfs::content::%{_src}%}
-        delete {vfs::owner::%{_src}%}
-        delete {vfs::perm::%{_src}%}
 
         send "&aMoved &f%{_src}% &ato &f%{_dst}%" to player
 
