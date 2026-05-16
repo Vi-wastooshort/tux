@@ -29,17 +29,41 @@ The following commands do *not* require `/sudo` permissions:
 - /cat <file> - Prints the contents of a file specified. Example: `/cat secrets.txt` or `/cat /filesystem/root/secrets.txt`.
 - /sudo-login <password> - Gives the user `10 minutes` of sudo permissions. By default, the password is `root`. Example: `/sudo-login root`
 
-The following commands require `/sudo` permissions. You do not need quotations to append or to write text to files.
-- /mkdir <text> - Creates a new directory. Example: `/mkdir NewFolder`
-- /touch <text> - Creates an empty text file. It is recommended to add `.txt` to the end to distinguish it as a text file. Example: `/touch supersecret.txt`
-- /write <file> <text> - Writes to a file. Example: `/write supersecret.txt The quick brown fox jumps over the lazy dog.`
-- /append <file> <text> - Adds text to a text file. Example: `/append supersecret.txt No, they don't!`
-- /rm <file> - Deletes a file or directory. **THIS IS IRREVERSIBLE!** Example: `/rm supersecret.txt` or `/rm /filesystem/root/supersecret.txt`
-- /chmod <permission> <player> - Adjust permissions. *Permissions are a Work In Progress! Expect to see permissions added in a later version of tux.*
-- /mv <source file|old name> <destination|new_name> - Renames or moves files and directories. Example: `/mv /filesystem/root/supersecret.txt /filesystem/root/secrets/`
+The following commands use a UNIX-like permission system. Depending on file ownership and permissions, some commands may require `/sudo` access.
+- /mkdir <directory> - Creates a new directory if you have write access to the parent directory. Example: `/mkdir NewFolder`
+- /touch <file> - Creates an empty file if you have write access to the parent directory. Example: `/touch supersecret.txt`
+- /write <file> <text> - Overwrites the contents of a file if you have write permission. Example: `/write supersecret.txt The quick brown fox jumps over the lazy dog.`
+- /append <file> <text> - Adds text to a file if you have write permission. Example: `/append supersecret.txt No, he didn't!`
+- /rm <file|directory> - Deletes a file or directory if you have write access to the parent directory. **THIS IS IRREVERSIBLE!** Example: `/rm supersecret.txt`
+- /chmod <permission> <path> - Changes permissions on a file or directory. Example: `/chmod 755 scripts`
+- /chown <user> <path> - Changes ownership of a file or directory. Requires sudo permissions. Example: `/chown root secrets.txt`
+- /mv <source> <destination> - Renames or moves files and directories if you have sufficient permissions. Example: `/mv old.txt new.txt`
+- /stat <path> - Displays filesystem metadata including owner and permissions. Example: `/stat secrets.txt`
 
 ### Filesystem
-The default filesystem when you first login is `/filesystem/root`. `/filesystem` is immutable, and `/root` is a protected directory, meaning you cannot rename or alter the file itself, only the contents inside `root`.
+
+The default filesystem when you first login is `/filesystem/root`.
+
+tux includes a UNIX-like permission system with:
+- File ownership
+- Read (`r`)
+- Write (`w`)
+- Execute (`x`) permissions
+- Directory traversal permissions
+- Root permission bypass via `/sudo-login`
+
+Permissions are stored numerically in standard UNIX format:
+- `700` = owner can read/write/execute
+- `755` = owner full access, others read/execute
+- `644` = owner read/write, others read-only
+
+By default:
+- `/filesystem` is protected and immutable
+- `/filesystem/root` is root-owned and restricted
+- Newly created files are usually `600`
+- Newly created directories are usually `700`
+
+Directory traversal requires execute (`x`) permission on parent directories.
 
 ### Sudo
 Some commands require `sudo` permissions by default. In order to gain sudo permissions, use the command `/sudo-login <password>`. By default, the password is `root`; however, it is **HIGHLY** recommended that you change the root password in `rootpassword.sk` in the `system` folder of tux in order to prevent unauthorized usage of **SERVER CONSOLE** commands. **tux developers are not responsible for the damages caused by root password negligence!**
@@ -52,7 +76,15 @@ Some commands require `sudo` permissions by default. In order to gain sudo permi
 
 **Q:** Can I create new users or groups?
 
-Not yet. Permissions are a work in progress. Currently, only the `root` user (via `/sudo-login`) has elevated access. We are working on implementing a way to give elevated file access through users and groups without sharing a root password.
+tux currently supports file ownership and UNIX-style permissions, but does not yet implement full user or group management.
+
+At the moment:
+- Players automatically own files they create
+- `/chmod` can modify permissions
+- `/chown` can change ownership (root only)
+- `/sudo-login` provides temporary root access
+
+Group permissions and multi-user account management are planned for a future release.
 
 **Q:** Commands aren’t working after installation.
 
@@ -60,6 +92,7 @@ Ensure:
 - Skript is installed and up to date.
 - You’ve reloaded Skript (/skript reload all).
 - You’re using a Paper-compatible server (Spigot/Bukkit may work but aren’t officially supported).
+
 Otherwise, submit a bug report in issues.
 
 **Q:** I get "Invalid path" errors.
